@@ -1,0 +1,70 @@
+/*
+Neha Kurian, Ayushi Ghelani, Dheetilekha Nath
+June, 2019
+
+The following codes sweep servos to paricular angles based on the feedback recieved from the flex and force sensors.
+The flex sensors on the gloves are mapped and accordingly the servos on the robotic hand rotate and based on the feedback from the 
+force sensors, again mapping is done to rotate the servos attached to the glove.
+
+Here an ESP32 and the servo.h library were used.
+*/
+
+
+#include <stdio.h>
+#include <math.h>
+#include <time.h>
+#include <string.h>
+#include <stdlib.h>
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
+#include "SRA18.h"
+#include "driver/gpio.h"
+#include "driver/adc.h"
+#include "esp_adc_cal.h"
+#include "esp_attr.h"
+#include "SERVO.h"
+
+
+adc1_channel_t channel[4] = {ADC_CHANNEL_7,ADC_CHANNEL_6,ADC_CHANNEL_0,ADC_CHANNEL_3};
+
+/* ADC_CHANNEL_7 ---> pin 34 ---> flex thumb,
+ 	ADC_CHANNEL_6 ---> pin 35 ---> flex index,
+ 	ADC_CHANNEL_0 ---> pin 36 ---> force thumb,
+ 	ADC_CHANNEL_3 ---> pin 39 ---> force index  */
+
+float adc_raw_reading[4];
+int servo[4];
+
+static void mcpwm_servo_control(void *arg)
+
+{
+    
+	while(1)
+    
+	{
+		for(int i=0;i<4;i++)
+		{
+			adc_raw_reading[i]= adc1_get_raw(channel[i]); 
+		}
+		
+	    servo[0]=(((adc_raw_reading[0])*(170))/(1000));             //GPIO 18-glove thumb 
+		  servo[1]=(((adc_raw_reading[1])*(170))/(1500));		         //GPIO 19-glove index
+		  servo[2]=(((adc_raw_reading[2])*(180))/(1800));	         	//GPIO 21-robot thumb
+		  servo[3]=(((adc_raw_reading[3])*(180))/(1800));		        //GPIO 22-robot index
+
+		mcpwm_example_servo_control(servo[0],servo[1],servo[2],servo[3]);
+        	
+	}
+
+}
+
+void app_main()
+
+{
+	//adc1_init();
+    	mcpwm_example_gpio_initialize();
+	printf("STARTING");
+    	xTaskCreate(mcpwm_servo_control, "mcpwm_example_servo_control", 4096, NULL, 5, NULL);
+	
+}
+
